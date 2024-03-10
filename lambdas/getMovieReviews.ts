@@ -25,6 +25,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         }
 
         let filterExpression = '';
+
+        let keyConditionExpression: string = "MovieId = :movieId";
+
         let expressionAttributeValues: any = {
             ":movieId": movieId,
         };
@@ -35,8 +38,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         }
 
         if (reviewerName) {
-            filterExpression += filterExpression ? ' AND ' : '';
-            filterExpression += 'ReviewerName = :reviewerName';
+            keyConditionExpression += " AND ReviewerName = :reviewerName";
             expressionAttributeValues[":reviewerName"] = reviewerName;
         }
 
@@ -48,7 +50,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
 
         const queryCommandInput: any = {
             TableName: process.env.TABLE_NAME, // 确保环境变量名称正确
-            KeyConditionExpression: "MovieId = :movieId",
+            KeyConditionExpression: keyConditionExpression,
             ExpressionAttributeValues: expressionAttributeValues,
         };
 
