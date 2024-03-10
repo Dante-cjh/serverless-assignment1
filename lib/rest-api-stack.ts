@@ -181,6 +181,18 @@ export class RestAPIStack extends cdk.Stack {
             },
         });
 
+        const getReviewsByParam = new lambdanode.NodejsFunction(this, 'GetReviewsByParam', {
+            architecture: lambda.Architecture.ARM_64,
+            runtime: lambda.Runtime.NODEJS_16_X,
+            entry: `${__dirname}/../lambdas/getReviewsByParams.ts`,
+            timeout: cdk.Duration.seconds(10),
+            memorySize: 128,
+            environment: {
+                TABLE_NAME: movieReviewTable.tableName,
+                REGION: 'eu-west-1',
+            },
+        })
+
         const getReviewsByReviewerFn = new lambdanode.NodejsFunction(this, 'GetReviewsByReviewerFunction', {
             architecture: lambda.Architecture.ARM_64,
             runtime: lambda.Runtime.NODEJS_16_X,
@@ -202,6 +214,7 @@ export class RestAPIStack extends cdk.Stack {
         movieCastsTable.grantReadData(getMovieByIdFn);
         movieReviewTable.grantReadData(getReviewsByIdFn);
         movieReviewTable.grantReadData(getReviewsByReviewerFn);
+        movieReviewTable.grantReadWriteData(getReviewsByParam);
         movieReviewTable.grantReadWriteData(newReviewFn);
         movieReviewTable.grantReadWriteData(updateMovieReviewFn);
 
@@ -259,11 +272,8 @@ export class RestAPIStack extends cdk.Stack {
             new apig.LambdaIntegration(newReviewFn, {proxy: true})
         );
 
-        const reviewerEndpoint = movieReviewEndpoint.addResource("{reviewerName}");
-        reviewerEndpoint.addMethod("GET", new apig.LambdaIntegration(getReviewsByIdFn, {proxy: true}));
-
-        // const yearEndpoint = movieReviewEndpoint.addResource("{year}");
-        // yearEndpoint.addMethod("GET", new apig.LambdaIntegration(getReviewsByIdFn, { proxy: true }));
+        const reviewerEndpoint = movieReviewEndpoint.addResource("{param}");
+        reviewerEndpoint.addMethod("GET", new apig.LambdaIntegration(getReviewsByParam, {proxy: true}));
 
         reviewerEndpoint.addMethod('PUT', new apig.LambdaIntegration(updateMovieReviewFn, {proxy: true}));
 

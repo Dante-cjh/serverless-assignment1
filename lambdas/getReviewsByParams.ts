@@ -10,8 +10,17 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         console.log("Event: ", event);
         const parameters = event?.pathParameters;
         const movieId = parameters?.movieId ? parseInt(parameters.movieId) : undefined;
-        const minRating = event.queryStringParameters?.minRating;
-        const reviewerName = parameters?.reviewerName;
+        const param:any = parameters?.param;
+
+        let reviewYear = undefined;
+        let reviewerName = undefined;
+
+        if(isValidYear(param)){
+            reviewYear = parameters?.year;
+        }else {
+            reviewerName = parameters?.reviewerName;
+        }
+
 
         if (!movieId) {
             return {
@@ -31,14 +40,15 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
             ":movieId": movieId,
         };
 
-        if (minRating) {
-            filterExpression += 'Rating >= :minRating';
-            expressionAttributeValues[":minRating"] = parseInt(minRating);
-        }
 
         if (reviewerName) {
             keyConditionExpression += " AND ReviewerName = :reviewerName";
             expressionAttributeValues[":reviewerName"] = reviewerName;
+        }
+
+        if (reviewYear) {
+            filterExpression += 'begins_with(ReviewDate, :reviewYear)';
+            expressionAttributeValues[":reviewYear"] = reviewYear;
         }
 
         const queryCommandInput: any = {
@@ -87,4 +97,10 @@ function createDocumentClient() {
     };
     const translateConfig = {marshallOptions, unmarshallOptions};
     return DynamoDBDocumentClient.from(ddbClient, translateConfig);
+}
+
+// Determine if it is a valid year
+function isValidYear(param: string): boolean {
+    // assuming a four-digit year
+    return /^\d{4}$/.test(param);
 }

@@ -16,7 +16,18 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         console.log("Event: ", event);
         const parameters = event?.pathParameters;
         const movieId = parameters?.movieId ? parseInt(parameters.movieId) : undefined;
-        const reviewerName = parameters?.reviewerName;
+        const param: any = parameters?.param;
+        if(isValidYear(param)){
+            return {
+                statusCode: 500,
+                headers: {
+                    "content-type": "application/json",
+                },
+                body: JSON.stringify({ message: "Ths param is not reviewer name" }),
+            };
+        }
+
+        const reviewerName = param;
         const body = event.body ? JSON.parse(event.body) : undefined;
         if (!body) {
             return {
@@ -87,4 +98,9 @@ function createDDbDocClient() {
     };
     const translateConfig = { marshallOptions, unmarshallOptions };
     return DynamoDBDocumentClient.from(ddbClient, translateConfig);
+}
+
+function isValidYear(param: string): boolean {
+    // assuming a four-digit year
+    return /^\d{4}$/.test(param);
 }
