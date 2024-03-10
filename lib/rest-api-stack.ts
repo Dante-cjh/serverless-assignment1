@@ -37,7 +37,7 @@ export class RestAPIStack extends cdk.Stack {
         const movieReviewTable = new dynamodb.Table(this, 'MovieReviews', {
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             partitionKey: {name: 'MovieId', type: dynamodb.AttributeType.NUMBER},
-            sortKey: {name: 'ReviewDate', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'ReviewerName', type: dynamodb.AttributeType.STRING},
             tableName: 'MovieReviews',
             removalPolicy: cdk.RemovalPolicy.DESTROY, // 注意：实际生产中应该小心使用此设置
         });
@@ -169,8 +169,20 @@ export class RestAPIStack extends cdk.Stack {
             },
         });
 
+        const updateMovieReviewFn = new lambdanode.NodejsFunction(this, "updateMovieReviewFn", {
+            architecture: lambda.Architecture.ARM_64,
+            runtime: lambda.Runtime.NODEJS_16_X,
+            entry: `${__dirname}/../lambdas/updateMovieReview.ts`,
+            timeout: cdk.Duration.seconds(10),
+            memorySize: 128,
+            environment: {
+                TABLE_NAME: movieReviewTable.tableName,
+                REGION: "eu-west-1",
+            },
+        });
 
-        // Permissions 
+
+        // Permissions
         moviesTable.grantReadData(getMovieByIdFn)
         moviesTable.grantReadData(getAllMoviesFn)
         moviesTable.grantReadWriteData(newMovieFn)
@@ -178,7 +190,9 @@ export class RestAPIStack extends cdk.Stack {
         movieCastsTable.grantReadData(getMovieCastMembersFn);
         movieCastsTable.grantReadData(getMovieByIdFn);
         movieReviewTable.grantReadData(getReviewsByIdFn);
-        movieReviewTable.grantReadWriteData(newReviewFn)
+        movieReviewTable.grantReadWriteData(newReviewFn);
+        movieReviewTable.grantReadWriteData(updateMovieReviewFn);
+
 
         // REST API 
         const api = new apig.RestApi(this, "RestAPI", {
@@ -230,14 +244,16 @@ export class RestAPIStack extends cdk.Stack {
 
         movieReviewEndpoint.addMethod(
             "POST",
-            new apig.LambdaIntegration(newReviewFn, { proxy: true })
+            new apig.LambdaIntegration(newReviewFn, {proxy: true})
         );
 
         const reviewerEndpoint = movieReviewEndpoint.addResource("{reviewerName}");
-        reviewerEndpoint.addMethod("GET", new apig.LambdaIntegration(getReviewsByIdFn, { proxy: true }));
+        reviewerEndpoint.addMethod("GET", new apig.LambdaIntegration(getReviewsByIdFn, {proxy: true}));
 
         // const yearEndpoint = movieReviewEndpoint.addResource("{year}");
         // yearEndpoint.addMethod("GET", new apig.LambdaIntegration(getReviewsByIdFn, { proxy: true }));
+
+        reviewerEndpoint.addMethod('PUT', new apig.LambdaIntegration(updateMovieReviewFn, {proxy: true}));
 
     }
 }
