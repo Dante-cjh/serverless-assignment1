@@ -7,6 +7,7 @@ import * as custom from "aws-cdk-lib/custom-resources";
 import * as node from "aws-cdk-lib/aws-lambda-nodejs";
 import {generateBatch} from "../shared/util";
 import {movies, movieCasts, movieReviews} from "../seed/movies";
+import * as iam from 'aws-cdk-lib/aws-iam';
 
 type AppApiProps = {
     userPoolId: string;
@@ -184,10 +185,32 @@ export class AppApi extends Construct {
             },
         });
 
-        const addMovieReviewFn = new node.NodejsFunction(this, "AddMovieReviewFn", {
+        const getReviewByIdAndReviewerFn = new node.NodejsFunction(this, "GetReviewByIdAndReviewerFn", {
             ...appCommonFnProps,
-            entry: "./lambdas/addMovieReview.ts", // 确保这个路径与你的文件结构匹配
+            entry: "./lambdas/getReviewByIdAndReviewer.ts",
+            environment: {
+                ...appCommonFnProps.environment, // 继承共通的环境变量
+                TABLE_NAME: movieReviewTable.tableName, // 添加或覆盖特定的环境变量
+            }
         });
+
+        const translateFn = new node.NodejsFunction(this, "Translate", {
+            ...appCommonFnProps,
+            entry: "./lambdas/translate.ts",
+            environment: {
+                ...appCommonFnProps.environment, // 继承共通的环境变量
+                TABLE_NAME: movieReviewTable.tableName, // 添加或覆盖特定的环境变量
+            },
+        });
+
+        // 创建一个新的IAM策略，允许调用Translate服务
+        const translatePolicy = new iam.PolicyStatement({
+            actions: ["translate:TranslateText"], // 定义允许的操作
+            resources: ["*"], // 在这个例子中，资源设置为所有，根据需要进行限制
+        });
+
+        // 将IAM策略附加到Lambda函数的执行角色上
+        translateFn.addToRolePolicy(translatePolicy);
 
         // Permissions
         moviesTable.grantReadData(getMovieByIdFn)
@@ -198,9 +221,11 @@ export class AppApi extends Construct {
         movieCastsTable.grantReadData(getMovieByIdFn);
         movieReviewTable.grantReadData(getReviewsByIdFn);
         movieReviewTable.grantReadData(getReviewsByReviewerFn);
+        movieReviewTable.grantReadData(getReviewByIdAndReviewerFn);
         movieReviewTable.grantReadWriteData(getReviewsByParam);
         movieReviewTable.grantReadWriteData(newReviewFn);
         movieReviewTable.grantReadWriteData(updateMovieReviewFn);
+        movieReviewTable.grantReadWriteData(translateFn);
 
 
         // authorizer
@@ -287,5 +312,11 @@ export class AppApi extends Construct {
         const reviewsEndpoint = api.root.addResource('reviews');
         const allReviewsEndpoint = reviewsEndpoint.addResource('{reviewerName}');
         allReviewsEndpoint.addMethod('GET', new apig.LambdaIntegration(getReviewsByReviewerFn));
+
+        const reviewByIdAndReviewer = allReviewsEndpoint.addResource('{movieId}');
+        reviewByIdAndReviewer.addMethod('GET', new apig.LambdaIntegration(getReviewByIdAndReviewerFn));
+
+        const translateReview = reviewByIdAndReviewer.addResource('translation');
+        translateReview.addMethod('GET', new apig.LambdaIntegration(translateFn));
     }
 }
