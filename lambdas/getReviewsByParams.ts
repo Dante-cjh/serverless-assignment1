@@ -16,9 +16,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         let reviewerName = undefined;
 
         if(isValidYear(param)){
-            reviewYear = parameters?.year;
+            reviewYear = param;
         }else {
-            reviewerName = parameters?.reviewerName;
+            reviewerName = param;
         }
 
 
@@ -61,7 +61,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         if (filterExpression) {
             queryCommandInput["FilterExpression"] = filterExpression;
         }
-
+        console.log(queryCommandInput);
         const queryOutput = await ddbDocClient.send(new QueryCommand(queryCommandInput));
         console.log("QueryCommand response: ", queryOutput);
 
