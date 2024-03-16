@@ -199,6 +199,13 @@ export const movieReviews: MovieReview[] = [
         Rating: 5,
     },
     {
+        MovieId: 1234,
+        ReviewerName: 'Jackson',
+        ReviewDate: '2023-03-01',
+        Content: 'A captivating tale of resilience and courage.',
+        Rating: 5,
+    },
+    {
         MovieId: 2345,
         ReviewerName: 'JaneSmith',
         ReviewDate: '2024-03-02',

@@ -10,3 +10,5 @@ cdk.out
 .DS_Store
 
 *.schema.json
+
+.idea
